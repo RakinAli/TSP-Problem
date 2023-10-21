@@ -2,6 +2,7 @@
 #include <vector>
 #include <cmath>
 #include <algorithm>
+#include <chrono> // Include the chrono library
 
 // Define a point structure
 struct Point
@@ -194,16 +195,34 @@ std::vector<int> twoOpt(const std::vector<Point> &nodes, std::vector<int> tour)
   return newTour;
 }
 
-// Repeated Randomized Nearest Neighbour with 2-opt. Returns the best tour found.
-std::vector<int> RRNN(const std::vector<Point> &nodes, std::vector<std::vector<double>> distance_matrix, int magic_number, int iterations)
+// Repeated Randomized Nearest Neighbour with 2-opt. Returns the best tour found within a time limit.
+std::vector<int> RRNN(const std::vector<Point> &nodes, std::vector<std::vector<double>> distance_matrix, int magic_number, double time_limit)
 {
   int node_count = nodes.size();
   std::vector<int> best_tour;
   double best_distance = 0.0;
 
-  // Repeat the algorithm for "iterations" times
-  for (int i = 0; i < iterations; i++)
+  // Get the current time
+  auto start_time = std::chrono::high_resolution_clock::now();
+
+  // Worst case --> 2 OPT on the greedy tour
+  std::vector<int> greedy_tour = greedyTour(nodes, node_count);
+  std::vector<int> new_greedy_tour = twoOpt(nodes, greedy_tour);
+  
+  best_distance = tourDistance(nodes, new_greedy_tour);
+  best_tour = new_greedy_tour;
+
+  // Repeat the algorithm until the time limit is reached
+  while (true)
   {
+    // Check if the time limit has been reached
+    auto current_time = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double> elapsed_time = std::chrono::duration_cast<std::chrono::duration<double>>(current_time - start_time);
+    if (elapsed_time.count() >= time_limit)
+    {
+      break; // Time limit reached, exit the loop
+    }
+
     // Build a random greedy tour
     std::vector<int> tour = randomGreedyTour(nodes, distance_matrix, magic_number);
 
@@ -214,7 +233,7 @@ std::vector<int> RRNN(const std::vector<Point> &nodes, std::vector<std::vector<d
     double new_distance = tourDistance(nodes, new_tour);
 
     // If the new tour is better than the best tour, update the best tour
-    if (i == 0 || new_distance < best_distance)
+    if (best_tour.empty() || new_distance < best_distance)
     {
       best_tour = new_tour;
       best_distance = new_distance;
@@ -232,16 +251,8 @@ int main(void)
   // Sanity check
   // std::cout << "Total nodes: " << nodes.size() << std::endl;
 
-  // Do a greedy tour
-  std::vector<int> tour = randomGreedyTour(nodes, distance_matrix, 3);
-
-  // printTour(tour);
-
-  // Improve the tour with 2-opt
-  std::vector<int> tour2 = twoOpt(nodes, tour);
-
   // RRNN
-  std::vector<int> tour3 = RRNN(nodes, distance_matrix, 3, 50);
+  std::vector<int> tour3 = RRNN(nodes, distance_matrix, 3, 1.9);
 
   // Output the tour
   printTour(tour3);
