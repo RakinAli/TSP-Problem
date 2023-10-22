@@ -208,7 +208,7 @@ std::vector<int> RRNN(const std::vector<Point> &nodes, std::vector<std::vector<d
   // Worst case --> 2 OPT on the greedy tour
   std::vector<int> greedy_tour = greedyTour(nodes, node_count);
   std::vector<int> new_greedy_tour = twoOpt(nodes, greedy_tour);
-  
+
   best_distance = tourDistance(nodes, new_greedy_tour);
   best_tour = new_greedy_tour;
 
@@ -242,6 +242,69 @@ std::vector<int> RRNN(const std::vector<Point> &nodes, std::vector<std::vector<d
   return best_tour;
 }
 
+std::vector<int> threeOpt(const std::vector<Point> &nodes, std::vector<int> tour)
+{
+  int tourSize = tour.size();
+  bool improvement = true;
+
+  while (improvement)
+  {
+    improvement = false;
+
+    for (int i = 0; i < tourSize - 3; i++)
+    {
+      for (int j = i + 2; j < tourSize - 1; j++)
+      {
+        for (int k = j + 2; k < tourSize - 1; k++)
+        {
+          // Apply Or-opt move
+          std::vector<int> newTour;
+
+          for (int l = 0; l <= i; l++)
+          {
+            newTour.push_back(tour[l]);
+          }
+
+          for (int l = k; l > j; l--)
+          {
+            newTour.push_back(tour[l]);
+          }
+
+          for (int l = j; l > i; l--)
+          {
+            newTour.push_back(tour[l]);
+          }
+
+          for (int l = k + 1; l < tourSize; l++)
+          {
+            newTour.push_back(tour[l]);
+          }
+
+          double newDistance = tourDistance(nodes, newTour);
+          double currentDistance = tourDistance(nodes, tour);
+
+          if (newDistance < currentDistance)
+          {
+            tour = newTour;
+            improvement = true;
+            break; // Continue with the next improvement round
+          }
+        }
+        if (improvement)
+        {
+          break; // Continue with the next improvement round
+        }
+      }
+      if (improvement)
+      {
+        break; // Continue with the next improvement round
+      }
+    }
+  }
+
+  return tour;
+}
+
 int main(void)
 {
   // Read input from stdin and build a distance matrix
@@ -249,11 +312,22 @@ int main(void)
   std::vector<std::vector<double>> distance_matrix = buildDistanceMatrix(nodes);
 
   // Sanity check
-  // std::cout << "Total nodes: " << nodes.size() << std::endl;
+
+  // Greedy tour
+  std::vector<int> tour1 = greedyTour(nodes, nodes.size());
 
   // RRNN
-  std::vector<int> tour3 = RRNN(nodes, distance_matrix, 3, 1.9);
+  std::vector<int> tour3 = RRNN(nodes, distance_matrix, 3, 1.925);
 
   // Output the tour
-  printTour(tour3);
+  // printTour(tour3);
+
+  std::vector<int> tour4 = {52, 565, 575, 25, 185, 345, 750, 945, 685, 845, 655, 880, 660, 25, 230, 525, 1000, 580, 1175, 650, 1130, 1605, 620, 1220, 580, 1465, 200, 1530, 5, 845, 680, 725, 370, 145, 665, 415, 635, 510, 875, 560, 365, 300, 465, 520, 585, 480, 415, 835, 625, 975, 580, 1215, 245, 1320, 315, 1250, 400, 660, 180, 410, 250, 420, 555, 575, 665, 1150, 1160, 700, 580, 685, 595, 685, 610, 770, 610, 795, 645, 720, 635, 760, 650, 475, 960, 95, 260, 875, 920, 700, 500, 555, 815, 830, 485, 1170, 65, 830, 610, 605, 625, 595, 360, 1340, 725, 1740, 245};
+
+  // output the distance of the tour4
+  std::cout << "OPT:: " << tourDistance(nodes, tour4) << std::endl;
+
+  // Output the distance of the tour2
+  std::cout
+      << "RRNN: " << tourDistance(nodes, tour3) << std::endl;
 }
