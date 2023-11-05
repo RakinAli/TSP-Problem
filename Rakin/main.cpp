@@ -393,20 +393,8 @@ std::vector<std::pair<int, int>> findMinimumWeightMatching(const std::vector<int
   std::vector<bool> matched(odd_degree_vertices.size(), false); // Keep track of matched vertices
   std::vector<std::pair<int, int>> matching;                    // Store pairs of matched vertices
 
-  // Sort the vertices based on their connections (This is just a heuristic to improve the greedy matching)
-  std::vector<int> sorted_vertices = odd_degree_vertices;
-  std::sort(sorted_vertices.begin(), sorted_vertices.end(), [&](const int &a, const int &b)
-            {
-    double min_a = std::numeric_limits<double>::max();
-    double min_b = std::numeric_limits<double>::max();
-    for (const int &vertex : odd_degree_vertices) {
-      if (vertex != a) min_a = std::min(min_a, distance_matrix[a][vertex]);
-      if (vertex != b) min_b = std::min(min_b, distance_matrix[b][vertex]);
-    }
-    return min_a < min_b; });
-
   // Perform greedy matching
-  for (int i = 0; i < sorted_vertices.size(); ++i)
+  for (int i = 0; i < odd_degree_vertices.size(); ++i)
   {
     if (!matched[i])
     {
@@ -414,11 +402,11 @@ std::vector<std::pair<int, int>> findMinimumWeightMatching(const std::vector<int
       int min_index = -1;
 
       // Find the closest unmatched vertex
-      for (int j = i + 1; j < sorted_vertices.size(); ++j)
+      for (int j = 0; j < odd_degree_vertices.size(); ++j)
       {
-        if (!matched[j])
+        if (!matched[j] && i != j)
         {
-          double weight = distance_matrix[sorted_vertices[i]][sorted_vertices[j]];
+          double weight = distance_matrix[odd_degree_vertices[i]][odd_degree_vertices[j]];
           if (weight < min_distance)
           {
             min_distance = weight;
@@ -430,15 +418,15 @@ std::vector<std::pair<int, int>> findMinimumWeightMatching(const std::vector<int
       // If a match is found, mark both vertices as matched and add them to the matching
       if (min_index != -1)
       {
-        matching.emplace_back(sorted_vertices[i], sorted_vertices[min_index]);
+        matching.emplace_back(odd_degree_vertices[i], odd_degree_vertices[min_index]);
         matched[i] = true;
         matched[min_index] = true;
       }
     }
   }
-
   return matching;
 }
+
 
 // Add the MST edges to the Eulerian graph
 std::vector<std::pair<int, int>> combineMSTAndMatching(const std::vector<std::pair<int, int>> &mst_edges, const std::vector<std::pair<int, int>> &matching)
