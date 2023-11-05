@@ -3,6 +3,10 @@
 #include <cmath>
 #include <algorithm>
 #include <chrono> // Include the chrono library
+#include <limits>
+#include <stack>
+#include <unordered_map>
+#include <unordered_set>
 
 // Define a point structure
 struct Point
@@ -305,8 +309,258 @@ std::vector<int> threeOpt(const std::vector<Point> &nodes, std::vector<int> tour
   return tour;
 }
 
-std::vector<int> christopides(const std::vector<Point> &nodes, std::vector<std::vector<double>> distance_matrix, )
+std::vector<std::pair<int, int>> findMinimumSpanningTree(const std::vector<std::vector<double>> &distance_matrix)
 {
+  int n = distance_matrix.size();
+  std::vector<bool> in_mst(n, false);                                    // Tracks whether a vertex is in the MST
+  std::vector<double> min_weight(n, std::numeric_limits<double>::max()); // Minimum weight to connect to MST
+  std::vector<int> parent(n, -1);                                        // Tracks the parent node in MST
+  std::vector<std::pair<int, int>> mst_edges;                            // Stores the result MST as edges
+
+  // Starting with the first node
+  min_weight[0] = 0;
+  parent[0] = -1; // The root of MST has no parent
+
+  for (int count = 0; count < n - 1; count++)
+  {
+    // Find the vertex with minimum weight edge that's not already in the MST
+    double min = std::numeric_limits<double>::max();
+    int min_index = -1;
+
+    for (int v = 0; v < n; v++)
+    {
+      if (!in_mst[v] && min_weight[v] < min)
+      {
+        min = min_weight[v];
+        min_index = v;
+      }
+    }
+
+    // Include this vertex in the MST
+    in_mst[min_index] = true;
+
+    // Update the min_weight and parent index of the adjacent vertices
+    for (int v = 0; v < n; v++)
+    {
+      if (distance_matrix[min_index][v] && !in_mst[v] && distance_matrix[min_index][v] < min_weight[v])
+      {
+        parent[v] = min_index;
+        min_weight[v] = distance_matrix[min_index][v];
+      }
+    }
+  }
+
+  // Construct the MST edges from the parent array
+  for (int i = 1; i < n; ++i)
+  {
+    if (parent[i] != -1)
+    {
+      mst_edges.push_back({parent[i], i});
+    }
+  }
+  return mst_edges;
+}
+
+// Finds all the odds degree vertices in the MST
+std::vector<int> findOddDegreeVertices(const std::vector<std::pair<int, int>> &mst_edges, int num_nodes)
+{
+  // Degree array to count the degree of each vertex
+  std::vector<int> degree(num_nodes, 0);
+
+  // Count the degree of each vertex
+  for (const auto &edge : mst_edges)
+  {
+    degree[edge.first]++;
+    degree[edge.second]++;
+  }
+
+  // Find vertices with odd degree
+  std::vector<int> odd_degree_vertices;
+  for (int i = 0; i < num_nodes; ++i)
+  {
+    if (degree[i] % 2 != 0)
+    {
+      odd_degree_vertices.push_back(i);
+    }
+  }
+
+  return odd_degree_vertices;
+}
+
+// Finds the minimum weight matching on the subgraph induced by the odd degree vertices
+std::vector<std::pair<int, int>> findMinimumWeightMatching(const std::vector<int> &odd_degree_vertices, const std::vector<std::vector<double>> &distance_matrix)
+{
+  std::vector<bool> matched(odd_degree_vertices.size(), false); // Keep track of matched vertices
+  std::vector<std::pair<int, int>> matching;                    // Store pairs of matched vertices
+
+  // Sort the vertices based on their connections (This is just a heuristic to improve the greedy matching)
+  std::vector<int> sorted_vertices = odd_degree_vertices;
+  std::sort(sorted_vertices.begin(), sorted_vertices.end(), [&](const int &a, const int &b)
+            {
+    double min_a = std::numeric_limits<double>::max();
+    double min_b = std::numeric_limits<double>::max();
+    for (const int &vertex : odd_degree_vertices) {
+      if (vertex != a) min_a = std::min(min_a, distance_matrix[a][vertex]);
+      if (vertex != b) min_b = std::min(min_b, distance_matrix[b][vertex]);
+    }
+    return min_a < min_b; });
+
+  // Perform greedy matching
+  for (int i = 0; i < sorted_vertices.size(); ++i)
+  {
+    if (!matched[i])
+    {
+      double min_distance = std::numeric_limits<double>::max();
+      int min_index = -1;
+
+      // Find the closest unmatched vertex
+      for (int j = i + 1; j < sorted_vertices.size(); ++j)
+      {
+        if (!matched[j])
+        {
+          double weight = distance_matrix[sorted_vertices[i]][sorted_vertices[j]];
+          if (weight < min_distance)
+          {
+            min_distance = weight;
+            min_index = j;
+          }
+        }
+      }
+
+      // If a match is found, mark both vertices as matched and add them to the matching
+      if (min_index != -1)
+      {
+        matching.emplace_back(sorted_vertices[i], sorted_vertices[min_index]);
+        matched[i] = true;
+        matched[min_index] = true;
+      }
+    }
+  }
+
+  return matching;
+}
+
+// Add the MST edges to the Eulerian graph
+std::vector<std::pair<int, int>> combineMSTAndMatching(const std::vector<std::pair<int, int>> &mst_edges, const std::vector<std::pair<int, int>> &matching)
+{
+  std::vector<std::pair<int, int>> eulerian_graph;
+
+  // Add the MST edges to the Eulerian graph
+  for (const auto &edge : mst_edges)
+  {
+    eulerian_graph.push_back(edge);
+  }
+
+  // Add the matching edges to the Eulerian graph
+  for (const auto &edge : matching)
+  {
+    eulerian_graph.push_back(edge);
+  }
+
+  return eulerian_graph;
+}
+
+// Find an Eulerian tour in the Eulerian graph
+std::vector<int> findEulerianTour(const std::vector<std::pair<int, int>> &edges, int num_nodes)
+{
+  std::vector<int> eulerian_tour;
+  std::unordered_map<int, std::vector<int>> adj_list;
+  std::stack<int> current_path;
+  std::vector<int> circuit;
+
+  // Create the adjacency list
+  for (const auto &edge : edges)
+  {
+    adj_list[edge.first].push_back(edge.second);
+    adj_list[edge.second].push_back(edge.first);
+  }
+
+  // Ensure all vertices have even degree
+  for (auto &pair : adj_list)
+  {
+    if (pair.second.size() % 2 != 0)
+    {
+      std::cerr << "Graph is not Eulerian: all vertices must have even degree." << std::endl;
+      return {};
+    }
+
+    // Sort the adjacency list to get the same result consistently
+    std::sort(pair.second.begin(), pair.second.end());
+  }
+
+  int current_vertex = edges.begin()->first; // Start from the first vertex
+  current_path.push(current_vertex);
+
+  while (!current_path.empty())
+  {
+    if (!adj_list[current_vertex].empty())
+    {
+      // If the current vertex has neighbors, push it onto the stack and move to a neighbor
+      current_path.push(current_vertex);
+      int next_vertex = adj_list[current_vertex].back();
+      adj_list[current_vertex].pop_back();
+
+      // Remove the edge in the opposite direction
+      adj_list[next_vertex].erase(std::find(adj_list[next_vertex].begin(), adj_list[next_vertex].end(), current_vertex));
+      current_vertex = next_vertex;
+    }
+    else
+    {
+      // If the current vertex has no neighbors, add it to the circuit and pop back to the previous vertex
+      circuit.push_back(current_vertex);
+      current_vertex = current_path.top();
+      current_path.pop();
+    }
+  }
+
+  // Reverse the circuit to get the Eulerian tour
+  std::reverse(circuit.begin(), circuit.end());
+  return circuit;
+}
+
+// Shortcut the Eulerian tour to get a Hamiltonian circuit
+std::vector<int> shortcutEulerianTour(const std::vector<int> &eulerian_tour)
+{
+  std::vector<int> hamiltonian_circuit;
+  std::unordered_set<int> visited;
+
+  for (int vertex : eulerian_tour)
+  {
+    // If we have not visited this vertex before, add it to the Hamiltonian circuit
+    if (visited.insert(vertex).second)
+    {
+      hamiltonian_circuit.push_back(vertex);
+    }
+  }
+
+  // Add the starting vertex to the end to form a circuit
+  hamiltonian_circuit.push_back(hamiltonian_circuit.front());
+
+  return hamiltonian_circuit;
+}
+
+std::vector<int> christopides(const std::vector<Point> &nodes, std::vector<std::vector<double>> distance_matrix)
+{
+  // 1. Find the minimum spanning tree
+  std::vector<std::pair<int, int>> mst_edges = findMinimumSpanningTree(distance_matrix);
+
+  // 2. Find all vertices with odd degree in the MST
+  std::vector<int> odd_degree_vertices = findOddDegreeVertices(mst_edges, nodes.size());
+
+  // 3. Find minimum weight perfect matching on the subgraph induced by the odd degree vertices
+  std::vector<std::pair<int, int>> matching = findMinimumWeightMatching(odd_degree_vertices, distance_matrix);
+
+  // 4. Combine the edges of the MST and the matching to form a Eulerian graph
+  std::vector<std::pair<int, int>> eulerian_graph = combineMSTAndMatching(mst_edges, matching);
+
+  // 5. Find an Eulerian tour in the Eulerian graph
+  std::vector<int> eulerian_tour = findEulerianTour(eulerian_graph, nodes.size());
+  // Print the eulerian tour
+
+  // 6. Convert Eulerian tour to Hamiltonian circuit (shortcutting)
+  std::vector<int> hamiltonian_circuit = shortcutEulerianTour(eulerian_tour);
+
+  return hamiltonian_circuit;
 }
 
 int main(void)
@@ -315,14 +569,22 @@ int main(void)
   std::vector<Point> nodes = readInput();
   std::vector<std::vector<double>> distance_matrix = buildDistanceMatrix(nodes);
 
-  // Sanity check
+  // Do Christofides
+  std::vector<int> tour2 = christopides(nodes, distance_matrix);
 
-  // Greedy tour
-  std::vector<int> tour1 = greedyTour(nodes, nodes.size());
+  // 2-opt on the Christofides tour
+  std::vector<int> new_tour2 = twoOpt(nodes, tour2);
 
   // RRNN
   std::vector<int> tour3 = RRNN(nodes, distance_matrix, 3, 1.925);
 
   // Output the tour
-  printTour(tour3);
+  std::cout << "Results for Christofides " << std::endl;
+  std::cout << tourDistance(nodes, tour2) << std::endl;
+
+  std::cout << "Results for RRNN " << std::endl;
+  std::cout << tourDistance(nodes, tour3) << std::endl;
+
+  std::cout << "Results for 2-opt with Christofides " << std::endl;
+  std::cout << tourDistance(nodes, new_tour2) << std::endl;
 }
