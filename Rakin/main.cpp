@@ -364,7 +364,6 @@ std::vector<std::pair<int, int>> findMinimumWeightMatching(const std::vector<int
   return matching;
 }
 
-
 // Add the MST edges to the Eulerian graph
 std::vector<std::pair<int, int>> combineMSTAndMatching(const std::vector<std::pair<int, int>> &mst_edges, const std::vector<std::pair<int, int>> &matching)
 {
@@ -466,26 +465,35 @@ std::vector<int> shortcutEulerianTour(const std::vector<int> &eulerian_tour)
 
 std::vector<int> christopides(const std::vector<Point> &nodes, std::vector<std::vector<double>> distance_matrix)
 {
-  // 1. Find the minimum spanning tree
-  std::vector<std::pair<int, int>> mst_edges = findMinimumSpanningTree(distance_matrix);
+  try
+  {
+    // 1. Find the minimum spanning tree
+    std::vector<std::pair<int, int>> mst_edges = findMinimumSpanningTree(distance_matrix);
 
-  // 2. Find all vertices with odd degree in the MST. This is done naively and can be improved
-  std::vector<int> odd_degree_vertices = findOddDegreeVertices(mst_edges, nodes.size());
+    // 2. Find all vertices with odd degree in the MST. This is done naively and can be improved
+    std::vector<int> odd_degree_vertices = findOddDegreeVertices(mst_edges, nodes.size());
 
-  // 3. Find minimum weight perfect matching on the subgraph induced by the odd degree vertices
-  std::vector<std::pair<int, int>> matching = findMinimumWeightMatching(odd_degree_vertices, distance_matrix);
+    // 3. Find minimum weight perfect matching on the subgraph induced by the odd degree vertices
+    std::vector<std::pair<int, int>> matching = findMinimumWeightMatching(odd_degree_vertices, distance_matrix);
 
-  // 4. Combine the edges of the MST and the matching to form a Eulerian graph
-  std::vector<std::pair<int, int>> eulerian_graph = combineMSTAndMatching(mst_edges, matching);
+    // 4. Combine the edges of the MST and the matching to form a Eulerian graph
+    std::vector<std::pair<int, int>> eulerian_graph = combineMSTAndMatching(mst_edges, matching);
 
-  // 5. Find an Eulerian tour in the Eulerian graph
-  std::vector<int> eulerian_tour = findEulerianTour(eulerian_graph, nodes.size());
-  // Print the eulerian tour
+    // 5. Find an Eulerian tour in the Eulerian graph
+    std::vector<int> eulerian_tour = findEulerianTour(eulerian_graph, nodes.size());
 
-  // 6. Convert Eulerian tour to Hamiltonian circuit (shortcutting)
-  std::vector<int> hamiltonian_circuit = shortcutEulerianTour(eulerian_tour);
+    // 6. Convert Eulerian tour to Hamiltonian circuit (shortcutting)
+    std::vector<int> hamiltonian_circuit = shortcutEulerianTour(eulerian_tour);
 
-  return hamiltonian_circuit;
+    return hamiltonian_circuit;
+  }
+  catch (const std::exception &e)
+  {
+    // Do a Nearest Neighbor tour if Christofides fails then 2-opt it then return it
+    std::vector<int> tour = greedyTour(nodes, nodes.size());
+    std::vector<int> new_tour = twoOpt(nodes, tour);
+    return new_tour;
+  }
 }
 
 int main(void)
@@ -495,21 +503,24 @@ int main(void)
   std::vector<std::vector<double>> distance_matrix = buildDistanceMatrix(nodes);
 
   // Do Christofides
-  std::vector<int> tour2 = christopides(nodes, distance_matrix);
+  std::vector<int> tour = christopides(nodes, distance_matrix);
 
   // 2-opt on the Christofides tour
-  std::vector<int> new_tour2 = twoOpt(nodes, tour2);
+  std::vector<int> tour_christopides = twoOpt(nodes, tour);
 
   // RRNN
-  std::vector<int> tour3 = RRNN(nodes, distance_matrix, 3, 1.75);
+  std::vector<int> tour3 = RRNN(nodes, distance_matrix, 3, 1.25);
 
-  // Output the tour
-  std::cout << "Results for Christofides " << std::endl;
-  std::cout << tourDistance(nodes, tour2) << std::endl;
+  // Grab the smallest tour
+  double tour_distance = tourDistance(nodes, tour_christopides);
+  double tour_distance2 = tourDistance(nodes, tour3);
 
-  std::cout << "Results for RRNN " << std::endl;
-  std::cout << tourDistance(nodes, tour3) << std::endl;
-
-  std::cout << "Results for 2-opt with Christofides " << std::endl;
-  std::cout << tourDistance(nodes, new_tour2) << std::endl;
+  if (tour_distance < tour_distance2)
+  {
+    printTour(tour_christopides);
+  }
+  else
+  {
+    printTour(tour3);
+  }
 }
