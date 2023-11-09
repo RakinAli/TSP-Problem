@@ -487,7 +487,7 @@ std::vector<int> christopides(const std::vector<Point> &nodes, std::vector<std::
 
     return hamiltonian_circuit;
   }
-  catch (const std::exception &e)
+  catch (...)
   {
     // Do a Nearest Neighbor tour if Christofides fails then 2-opt it then return it
     std::vector<int> tour = greedyTour(nodes, nodes.size());
