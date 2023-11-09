@@ -133,7 +133,7 @@ int RandomNN(int current_node, const std::vector<bool> &visited, const std::vect
   }
 }
 
-// Builds a random greedy tour. Randomly picks the "magic_number" of the closest nodes and then builds a greedy tour from there.
+// Builds a random greedy tour. Randomly picks the "magic_number" of the11 closest nodes and then builds a greedy tour from there.
 std::vector<int> randomGreedyTour(const std::vector<Point> &nodes, std::vector<std::vector<double>> distance_matrix, int magic_number)
 {
   int node_count = nodes.size();
@@ -199,7 +199,7 @@ std::vector<int> twoOpt(const std::vector<Point> &nodes, std::vector<int> tour)
   return newTour;
 }
 
-// Repeated Randomized Nearest Neighbour with 2-opt. Returns the best tour found within a time limit.
+// Repeated Randomized Nearest Neighbour with 2-opt. Returns the best tour found within a time limit. 25 points in kattis
 std::vector<int> RRNN(const std::vector<Point> &nodes, std::vector<std::vector<double>> distance_matrix, int magic_number, double time_limit)
 {
   int node_count = nodes.size();
@@ -244,69 +244,6 @@ std::vector<int> RRNN(const std::vector<Point> &nodes, std::vector<std::vector<d
     }
   }
   return best_tour;
-}
-
-std::vector<int> threeOpt(const std::vector<Point> &nodes, std::vector<int> tour)
-{
-  int tourSize = tour.size();
-  bool improvement = true;
-
-  while (improvement)
-  {
-    improvement = false;
-
-    for (int i = 0; i < tourSize - 3; i++)
-    {
-      for (int j = i + 2; j < tourSize - 1; j++)
-      {
-        for (int k = j + 2; k < tourSize - 1; k++)
-        {
-          // Apply Or-opt move
-          std::vector<int> newTour;
-
-          for (int l = 0; l <= i; l++)
-          {
-            newTour.push_back(tour[l]);
-          }
-
-          for (int l = k; l > j; l--)
-          {
-            newTour.push_back(tour[l]);
-          }
-
-          for (int l = j; l > i; l--)
-          {
-            newTour.push_back(tour[l]);
-          }
-
-          for (int l = k + 1; l < tourSize; l++)
-          {
-            newTour.push_back(tour[l]);
-          }
-
-          double newDistance = tourDistance(nodes, newTour);
-          double currentDistance = tourDistance(nodes, tour);
-
-          if (newDistance < currentDistance)
-          {
-            tour = newTour;
-            improvement = true;
-            break; // Continue with the next improvement round
-          }
-        }
-        if (improvement)
-        {
-          break; // Continue with the next improvement round
-        }
-      }
-      if (improvement)
-      {
-        break; // Continue with the next improvement round
-      }
-    }
-  }
-
-  return tour;
 }
 
 std::vector<std::pair<int, int>> findMinimumSpanningTree(const std::vector<std::vector<double>> &distance_matrix)
@@ -532,7 +469,7 @@ std::vector<int> christopides(const std::vector<Point> &nodes, std::vector<std::
   // 1. Find the minimum spanning tree
   std::vector<std::pair<int, int>> mst_edges = findMinimumSpanningTree(distance_matrix);
 
-  // 2. Find all vertices with odd degree in the MST
+  // 2. Find all vertices with odd degree in the MST. This is done naively and can be improved
   std::vector<int> odd_degree_vertices = findOddDegreeVertices(mst_edges, nodes.size());
 
   // 3. Find minimum weight perfect matching on the subgraph induced by the odd degree vertices
@@ -564,7 +501,7 @@ int main(void)
   std::vector<int> new_tour2 = twoOpt(nodes, tour2);
 
   // RRNN
-  std::vector<int> tour3 = RRNN(nodes, distance_matrix, 3, 1.925);
+  std::vector<int> tour3 = RRNN(nodes, distance_matrix, 3, 1.75);
 
   // Output the tour
   std::cout << "Results for Christofides " << std::endl;
